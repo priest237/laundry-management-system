@@ -2,13 +2,43 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Mail, Lock, Loader2 } from "lucide-react";
-
+import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
 
-  const [email,setEmail] = useState("");
-  const [password,setPassword] = useState("");
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      if (!email || !password) {
+        throw new Error("Please fill in all fields");
+      }
+
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+
+      // Redirect to dashboard on successful login
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
 
@@ -46,7 +76,13 @@ export default function LoginPage() {
               Login to your account
             </h2>
 
-            <form className="space-y-6">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-100 text-red-700 text-sm mb-4">
+                {error}
+              </div>
+            )}
+
+            <form className="space-y-6" onSubmit={handleLogin}>
 
               <div className="relative">
 
@@ -61,6 +97,7 @@ export default function LoginPage() {
                   className="w-full pl-10 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   value={email}
                   onChange={(e)=>setEmail(e.target.value)}
+                  disabled={loading}
                 />
 
               </div>
@@ -78,12 +115,17 @@ export default function LoginPage() {
                   className="w-full pl-10 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   value={password}
                   onChange={(e)=>setPassword(e.target.value)}
+                  disabled={loading}
                 />
 
               </div>
 
-              <button className="w-full py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition shadow-md">
-                Login
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Logging in..." : "Login"}
               </button>
 
             </form>
@@ -92,6 +134,12 @@ export default function LoginPage() {
               Don’t have an account?
               <Link href="/register" className="text-blue-600 ml-1">
                 Register
+              </Link>
+            </p>
+
+            <p className="text-sm text-gray-500 mt-4 text-center">
+              <Link href="/forgot-password" className="text-blue-600 hover:underline">
+                Forgot your password?
               </Link>
             </p>
 

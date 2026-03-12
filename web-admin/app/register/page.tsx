@@ -2,13 +2,50 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Mail, Lock, User, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function RegisterPage() {
 
-  const [name,setName] = useState("");
-  const [email,setEmail] = useState("");
-  const [password,setPassword] = useState("");
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      if (!name || !email || !password) {
+        throw new Error("Please fill in all fields");
+      }
+
+      // Sign up with Supabase Auth
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      // Redirect to login or dashboard
+      router.push("/login");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
 
@@ -46,7 +83,13 @@ export default function RegisterPage() {
               Create Account
             </h2>
 
-            <form className="space-y-6">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-100 text-red-700 text-sm mb-4">
+                {error}
+              </div>
+            )}
+
+            <form className="space-y-6" onSubmit={handleRegister}>
 
               <div className="relative">
 
@@ -61,6 +104,7 @@ export default function RegisterPage() {
                   className="w-full pl-10 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   value={name}
                   onChange={(e)=>setName(e.target.value)}
+                  disabled={loading}
                 />
 
               </div>
@@ -78,6 +122,7 @@ export default function RegisterPage() {
                   className="w-full pl-10 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   value={email}
                   onChange={(e)=>setEmail(e.target.value)}
+                  disabled={loading}
                 />
 
               </div>
@@ -95,12 +140,17 @@ export default function RegisterPage() {
                   className="w-full pl-10 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                   value={password}
                   onChange={(e)=>setPassword(e.target.value)}
+                  disabled={loading}
                 />
 
               </div>
 
-              <button className="w-full py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition shadow-md">
-                Create Account
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? "Creating Account..." : "Create Account"}
               </button>
 
             </form>

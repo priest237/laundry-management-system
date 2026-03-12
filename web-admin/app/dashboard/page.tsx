@@ -1,9 +1,20 @@
 
 "use client";
 
-import { Shirt, Package, Users, DollarSign } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Shirt, Package, Users, DollarSign, LogOut } from "lucide-react";
+import { ProtectedRoute } from "@/lib/protected-route";
+import { useAuth } from "@/lib/auth-context";
 
-export default function Dashboard() {
+function DashboardContent() {
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push("/login");
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100">
 
@@ -14,7 +25,7 @@ export default function Dashboard() {
           WASHWARE
         </h1>
 
-        <nav className="space-y-6">
+        <nav className="space-y-6 mb-auto">
 
           <a className="flex items-center gap-3 hover:text-cyan-400 cursor-pointer">
             <Shirt size={20}/>
@@ -37,6 +48,19 @@ export default function Dashboard() {
           </a>
 
         </nav>
+
+        <div className="border-t border-slate-700 pt-4 mt-6">
+          <p className="text-sm text-slate-300 mb-3 truncate">
+            {user?.email}
+          </p>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 transition text-white"
+          >
+            <LogOut size={18}/>
+            Logout
+          </button>
+        </div>
       </div>
 
 
@@ -143,5 +167,13 @@ export default function Dashboard() {
       </div>
 
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }
