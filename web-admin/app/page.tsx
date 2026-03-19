@@ -60,7 +60,7 @@ export default function Home() {
           Features
         </h2>
 
-        <div className="p-6 bg-white rounded-xl shadow hover:shadow-xl transition hover:-translate-y-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto px-8">
 
           <div className="p-6 bg-white rounded-xl shadow hover:shadow-xl transition hover:-translate-y-1">
             <h3 className="text-xl font-semibold text-blue-600 mb-2">
