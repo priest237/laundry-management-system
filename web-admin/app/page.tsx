@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Navbar from "./components/Navbar";
 
 export default function Home() {
@@ -47,8 +48,11 @@ export default function Home() {
 
         </div>
 
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1604335399105-a0c585fd81a1"
+          alt="Laundry machines in a modern laundromat"
+          width={900}
+          height={600}
           className="rounded-xl shadow-lg mt-10 md:mt-0 w-full md:w-1/2"
         />
 
@@ -60,7 +64,7 @@ export default function Home() {
           Features
         </h2>
 
-        <div className="p-6 bg-white rounded-xl shadow hover:shadow-xl transition hover:-translate-y-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto px-8">
 
           <div className="p-6 bg-white rounded-xl shadow hover:shadow-xl transition hover:-translate-y-1">
             <h3 className="text-xl font-semibold text-blue-600 mb-2">
@@ -91,6 +95,26 @@ export default function Home() {
 
         </div>
 
+      </section>
+
+      {/* Shop Owner Call-to-Action Section */}
+      <section className="bg-gradient-to-r from-blue-600 to-indigo-700 py-20">
+        <div className="max-w-4xl mx-auto text-center px-8">
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Own a Laundry Shop?
+          </h2>
+          <p className="text-blue-100 text-xl mb-8 max-w-2xl mx-auto">
+            Join our growing network of modern laundromats. Get access to our digital platform,
+            manage orders online, track inventory, and grow your business with our comprehensive
+            laundry management system.
+          </p>
+          <a
+            href="/register-shop"
+            className="inline-block bg-white text-blue-600 px-10 py-4 rounded-lg font-semibold text-lg shadow-lg hover:bg-gray-50 hover:scale-105 transition transform"
+          >
+            Register Your Shop
+          </a>
+        </div>
       </section>
 
     </div>
