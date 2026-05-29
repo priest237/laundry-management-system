@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Washware User",
+    "slug": "washware-user",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "washwareuser",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Washware to find laundry shops near you."
+        }
+      ]
+    ]
+  }
+}

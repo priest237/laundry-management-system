@@ -332,3 +332,14 @@ CREATE POLICY "System owners can update profiles extension" ON public.profiles
   WITH CHECK (public.current_user_role()::text IN ('general_admin', 'admin'));
 
 NOTIFY pgrst, 'reload schema';
+
+-- Default CFA services used by the web and mobile ordering forms.
+INSERT INTO public.service_types (shop_id, name, pricing_unit, price, is_active)
+VALUES
+  (NULL, 'Wash and Fold', 'kg', 800, true),
+  (NULL, 'Wash and Iron', 'kg', 1200, true),
+  (NULL, 'Dry Cleaning', 'item', 2500, true),
+  (NULL, 'Ironing Only', 'item', 500, true),
+  (NULL, 'Bedding and Duvets', 'item', 3500, true),
+  (NULL, 'Express Service', 'kg', 1800, true)
+ON CONFLICT DO NOTHING;
