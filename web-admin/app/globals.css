@@ -24,3 +24,23 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+input,
+select,
+textarea {
+  background-color: #ffffff;
+  color: #0f172a;
+  caret-color: #2563eb;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #f8fafc;
+  color: #64748b;
+}

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, User, Loader2, Phone } from "lucide-react";
+import { Mail, Lock, User, Phone } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import Logo from "@/app/components/Logo";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -90,7 +91,9 @@ export default function RegisterPage() {
       <div className="flex w-[900px] h-[580px] rounded-3xl overflow-hidden shadow-2xl border border-white/20 backdrop-blur-xl bg-white/10">
         {/* left section */}
         <div className="w-1/2 flex flex-col justify-center items-center text-white p-10 bg-gradient-to-br from-blue-900 via-slate-900 to-slate-900">
-          <Loader2 size={60} className="animate-spin mb-6 text-blue-400" />
+          <div className="mb-6">
+            <Logo />
+          </div>
           <h1 className="text-4xl font-bold mb-4">WASHWARE</h1>
           <p className="text-slate-300 text-center max-w-xs">
             Create your account and start managing laundry orders easily.

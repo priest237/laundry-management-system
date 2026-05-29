@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { DEFAULT_SERVICE_TYPES } from "@/lib/admin-queries";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -40,15 +41,13 @@ export async function POST(request: Request) {
   });
 
   try {
-    // 1. Create user account with Supabase Auth
-    const { data: authData, error: authError } = await adminClient.auth.signUp({
+    // 1. Create a confirmed user account with Supabase Auth.
+    // This runs on the server, so it does not create a browser session.
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          name: shopName,
-        },
-      },
+      email_confirm: true,
+      user_metadata: { name: shopName },
     });
 
     if (authError) {
@@ -81,16 +80,38 @@ export async function POST(request: Request) {
     // 3. Create profile record with shop_admin role
     const { error: profileError } = await adminClient
       .from("profiles")
-      .insert({
+      .upsert({
         id: authData.user.id,
         name: shopName.trim(),
         role: "shop_admin",
         shop_id: shopData.id,
+        phone: phone.trim(),
+        address: address.trim(),
+        account_status: "active",
+      }, {
+        onConflict: "id",
       });
 
     if (profileError) {
       console.error("Profile insert error:", profileError);
       return NextResponse.json({ error: profileError.message || "Failed to create profile" }, { status: 400 });
+    }
+
+    const { error: serviceError } = await adminClient
+      .from("service_types")
+      .insert(
+        DEFAULT_SERVICE_TYPES.map((service) => ({
+          shop_id: shopData.id,
+          name: service.name,
+          pricing_unit: service.pricing_unit,
+          price: service.price,
+          is_active: true,
+        })),
+      );
+
+    if (serviceError) {
+      console.error("Default service insert error:", serviceError);
+      return NextResponse.json({ error: serviceError.message || "Failed to create default services" }, { status: 400 });
     }
 
     return NextResponse.json({

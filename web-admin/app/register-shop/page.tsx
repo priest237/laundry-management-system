@@ -101,9 +101,9 @@ export default function RegisterShopPage() {
       // Success!
       setSuccess(true);
 
-      // Redirect to dashboard after a short delay
+      // The account is created server-side, so the owner signs in with the new credentials.
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push("/login?message=Shop registered successfully. Please login with your shop admin email and password.");
       }, 2000);
 
     } catch (err) {
@@ -125,7 +125,7 @@ export default function RegisterShopPage() {
             </h2>
             <p className="text-gray-600 mb-6">
               Your laundry shop has been registered and your admin account created.
-              You&apos;ll be redirected to your dashboard shortly.
+              You&apos;ll be redirected to login shortly.
             </p>
             <div className="animate-pulse text-sm text-gray-500">
               Redirecting...

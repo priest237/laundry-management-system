@@ -124,6 +124,15 @@ export type DashboardSnapshot = {
   settings: SystemSettingRow[];
 };
 
+export const DEFAULT_SERVICE_TYPES = [
+  { name: "Wash and Fold", pricing_unit: "kg" as const, price: 800 },
+  { name: "Wash and Iron", pricing_unit: "kg" as const, price: 1200 },
+  { name: "Dry Cleaning", pricing_unit: "item" as const, price: 2500 },
+  { name: "Ironing Only", pricing_unit: "item" as const, price: 500 },
+  { name: "Bedding and Duvets", pricing_unit: "item" as const, price: 3500 },
+  { name: "Express Service", pricing_unit: "kg" as const, price: 1800 },
+];
+
 const emptySnapshot: DashboardSnapshot = {
   profiles: [],
   shops: [],
@@ -203,7 +212,7 @@ export async function getDashboardSnapshot(role?: UserRole | null, profileId?: s
         customer_id,
         shop_id,
         delivery_agent_id,
-        customer:profiles(id, name, phone),
+        customer:profiles!orders_customer_id_fkey(id, name, phone),
         shop:shops(id, name)
       `)
       .eq("delivery_agent_id", profileId)
@@ -230,7 +239,7 @@ export async function getDashboardSnapshot(role?: UserRole | null, profileId?: s
       customer_id,
       shop_id,
       delivery_agent_id,
-      customer:profiles(id, name, phone),
+      customer:profiles!orders_customer_id_fkey(id, name, phone),
       shop:shops(id, name)
     `);
   const servicesQuery = supabase.from("service_types").select("id, shop_id, name, pricing_unit, price, is_active");
@@ -249,7 +258,7 @@ export async function getDashboardSnapshot(role?: UserRole | null, profileId?: s
       status,
       transaction_id,
       created_at,
-      order:orders(id, order_number, shop_id, customer:profiles(id, name, phone), shop:shops(id, name))
+      order:orders(id, order_number, shop_id, customer:profiles!orders_customer_id_fkey(id, name, phone), shop:shops(id, name))
     `);
 
   const [
@@ -269,7 +278,7 @@ export async function getDashboardSnapshot(role?: UserRole | null, profileId?: s
       .order("created_at", { ascending: false }),
     supabase.from("shops").select("id, name, address, phone, latitude, longitude, shop_status, created_at").order("name"),
     (scopedToShop && shopId ? ordersQuery.eq("shop_id", shopId) : ordersQuery).order("created_at", { ascending: false }),
-    (scopedToShop && shopId ? servicesQuery.eq("shop_id", shopId) : servicesQuery).order("name"),
+    (scopedToShop && shopId ? servicesQuery.or(`shop_id.eq.${shopId},shop_id.is.null`) : servicesQuery).order("name"),
     (scopedToShop && shopId ? inventoryQuery.eq("shop_id", shopId) : inventoryQuery).order("item_name"),
     (scopedToShop && shopId ? revenueQuery.eq("shop_id", shopId) : revenueQuery).order("report_date", { ascending: false }),
     (scopedToShop && shopId ? machinesQuery.eq("shop_id", shopId) : machinesQuery).order("logged_at", { ascending: false }),
@@ -446,6 +455,25 @@ export async function saveService(input: {
   return data as ServiceTypeRow;
 }
 
+export async function seedDefaultServices(shopId: string | null = null) {
+  const { data, error } = await supabase
+    .from("service_types")
+    .upsert(
+      DEFAULT_SERVICE_TYPES.map((service) => ({
+        shop_id: shopId,
+        name: service.name,
+        pricing_unit: service.pricing_unit,
+        price: service.price,
+        is_active: true,
+      })),
+      { onConflict: "shop_id,name" },
+    )
+    .select();
+
+  if (error) throw error;
+  return data as ServiceTypeRow[];
+}
+
 export async function saveInventoryItem(input: {
   id?: string;
   shop_id: string;
@@ -474,13 +502,15 @@ export async function saveInventoryItem(input: {
 export async function createWalkInOrder(input: {
   customer_id: string;
   shop_id: string;
-  service_type: string;
-  quantity: number;
-  unit_price: number;
+  items: Array<{
+    service_type: string;
+    quantity: number;
+    unit_price: number;
+  }>;
   pickup_time?: string;
   delivery_time?: string;
 }) {
-  const orderTotal = input.quantity * input.unit_price;
+  const orderTotal = input.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const taxAmount = orderTotal * 0.05;
 
   const { data: order, error: orderError } = await supabase
@@ -499,13 +529,15 @@ export async function createWalkInOrder(input: {
 
   if (orderError) throw orderError;
 
-  const { error: itemError } = await supabase.from("order_items").insert({
-    order_id: order.id,
-    service_type: input.service_type,
-    quantity: input.quantity,
-    unit_price: input.unit_price,
-    total_price: orderTotal,
-  });
+  const { error: itemError } = await supabase.from("order_items").insert(
+    input.items.map((item) => ({
+      order_id: order.id,
+      service_type: item.service_type,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_price: item.quantity * item.unit_price,
+    })),
+  );
 
   if (itemError) throw itemError;
 
@@ -515,19 +547,22 @@ export async function createWalkInOrder(input: {
 export async function createCustomerOrder(input: {
   customer_id: string;
   shop_id: string;
-  service_type: string;
-  quantity: number;
-  unit_price: number;
+  items: Array<{
+    service_type: string;
+    quantity: number;
+    unit_price: number;
+  }>;
   fulfillment: "pickup" | "drop_off";
   address: string;
   notes?: string;
   payment_method: "cash" | "online";
 }) {
-  const orderTotal = input.quantity * input.unit_price;
+  const orderTotal = input.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const taxAmount = orderTotal * 0.05;
   const notes = [
     `Fulfillment: ${input.fulfillment === "pickup" ? "Pickup" : "Drop-off"}`,
     `Address: ${input.address || "Not provided"}`,
+    `Services: ${input.items.map((item) => `${item.service_type} x ${item.quantity}`).join(", ")}`,
     input.notes ? `Notes: ${input.notes}` : "",
   ]
     .filter(Boolean)
@@ -549,13 +584,15 @@ export async function createCustomerOrder(input: {
 
   if (orderError) throw orderError;
 
-  const { error: itemError } = await supabase.from("order_items").insert({
-    order_id: order.id,
-    service_type: input.service_type,
-    quantity: input.quantity,
-    unit_price: input.unit_price,
-    total_price: orderTotal,
-  });
+  const { error: itemError } = await supabase.from("order_items").insert(
+    input.items.map((item) => ({
+      order_id: order.id,
+      service_type: item.service_type,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_price: item.quantity * item.unit_price,
+    })),
+  );
 
   if (itemError) throw itemError;
 

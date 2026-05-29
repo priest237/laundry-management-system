@@ -1,7 +1,6 @@
 "use client";
 
-<<<<<<< HEAD
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Bell,
@@ -40,6 +39,7 @@ import {
   saveCustomer,
   saveInventoryItem,
   saveService,
+  seedDefaultServices,
   saveShop,
   saveSystemSetting,
   updateOwnProfile,
@@ -104,7 +104,11 @@ const adminRoles: UserRole[] = ["customer", "admin", "staff", "delivery_agent", 
 const accountStatuses: AccountStatus[] = ["active", "suspended", "deactivated"];
 
 function money(value: string | number | null | undefined) {
-  return `$${Number(value || 0).toFixed(2)}`;
+  return new Intl.NumberFormat("fr-CM", {
+    style: "currency",
+    currency: "XAF",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 }
 
 function normalizeRole(role?: UserRole | null) {
@@ -116,6 +120,17 @@ function statusClass(status: string) {
   if (status === "ready" || status === "out_for_delivery") return "bg-blue-50 text-blue-700";
   if (status === "suspended" || status === "fault") return "bg-red-50 text-red-700";
   return "bg-amber-50 text-amber-700";
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === "object") {
+    const candidate = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    return [candidate.message, candidate.details, candidate.hint, candidate.code]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .join(" ");
+  }
+  return fallback;
 }
 
 function DashboardContent() {
@@ -152,7 +167,7 @@ function DashboardContent() {
       const data = await getDashboardSnapshot(role, profile.id, profile.shop_id);
       setSnapshot(data);
     } catch (loadError) {
-      const message = loadError instanceof Error ? loadError.message : "Unable to load dashboard data.";
+      const message = errorMessage(loadError, "Unable to load dashboard data.");
       setError(`${message} If this mentions a missing table, run supabase/requirements_extension.sql in Supabase SQL Editor.`);
     } finally {
       setLoading(false);
@@ -280,7 +295,7 @@ function DashboardContent() {
       await action();
       await loadDashboard();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : "Action failed.");
+      setError(errorMessage(actionError, "Action failed."));
     } finally {
       setSaving("");
     }
@@ -306,221 +321,11 @@ function DashboardContent() {
           <button onClick={refreshProfile} className="rounded-md bg-blue-600 px-4 py-2 text-white">
             Try Again
           </button>
-=======
-import { useState, useEffect } from "react";
-import { 
-  ShoppingCart, 
-  Clock, 
-  CheckCircle, 
-  DollarSign,
-  Menu,
-  X,
-  Search,
-  Bell,
-  Sun,
-  Moon,
-  User,
-  LogOut,
-  Settings,
-  TrendingUp,
-  Package,
-  Users,
-  FileText,
-  ChevronRight,
-  Activity,
-  AlertCircle
-} from "lucide-react";
-import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { ProtectedRoute } from "@/lib/protected-route";
-
-interface Order {
-  id: string;
-  customer: string;
-  service: string;
-  status: "pending" | "washing" | "drying" | "completed";
-  amount: string;
-  machineId?: string;
-}
-
-interface Machine {
-  id: string;
-  name: string;
-  status: "available" | "in-use" | "maintenance";
-  progress?: number;
-  currentOrder?: string;
-}
-
-function DashboardContent() {
-  const [darkMode, setDarkMode] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
-  const [highlightedMachine, setHighlightedMachine] = useState<string | null>(null);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-
-  // Stats data
-  const [stats, setStats] = useState({
-    totalOrders: 128,
-    pendingOrders: 24,
-    completedOrders: 104,
-    revenue: "250,000 CFA"
-  });
-
-  // Orders data
-  const [orders, setOrders] = useState<Order[]>([
-    { id: "#ORD-001", customer: "John Doe", service: "Washing + Drying", status: "washing", amount: "5,000 CFA", machineId: "WM-001" },
-    { id: "#ORD-002", customer: "Grace Smith", service: "Dry Cleaning", status: "completed", amount: "8,000 CFA" },
-    { id: "#ORD-003", customer: "Michael Johnson", service: "Washing Only", status: "pending", amount: "4,000 CFA" },
-    { id: "#ORD-004", customer: "Sarah Williams", service: "Full Service", status: "drying", amount: "12,000 CFA", machineId: "WM-003" },
-    { id: "#ORD-005", customer: "David Brown", service: "Ironing", status: "pending", amount: "3,000 CFA" },
-  ]);
-
-  // Machines data
-  const [machines, setMachines] = useState<Machine[]>([
-    { id: "WM-001", name: "Washing Machine 1", status: "in-use", progress: 65, currentOrder: "#ORD-001" },
-    { id: "WM-002", name: "Washing Machine 2", status: "available" },
-    { id: "WM-003", name: "Washing Machine 3", status: "in-use", progress: 40, currentOrder: "#ORD-004" },
-    { id: "DR-001", name: "Dryer 1", status: "maintenance" },
-    { id: "DR-002", name: "Dryer 2", status: "available" },
-    { id: "DR-003", name: "Dryer 3", status: "in-use", progress: 80, currentOrder: "#ORD-001" },
-  ]);
-
-  // Chart data
-  const ordersChartData = [
-    { day: "Mon", orders: 12 },
-    { day: "Tue", orders: 19 },
-    { day: "Wed", orders: 15 },
-    { day: "Thu", orders: 25 },
-    { day: "Fri", orders: 22 },
-    { day: "Sat", orders: 30 },
-    { day: "Sun", orders: 18 },
-  ];
-
-  const machineStatusData = [
-    { name: "Available", value: machines.filter(m => m.status === "available").length, color: "#10b981" },
-    { name: "In Use", value: machines.filter(m => m.status === "in-use").length, color: "#3b82f6" },
-    { name: "Maintenance", value: machines.filter(m => m.status === "maintenance").length, color: "#f59e0b" },
-  ];
-
-  // Notifications
-  const notifications = [
-    { id: 1, text: "New order received from John Doe", time: "2 min ago", read: false },
-    { id: 2, text: "Machine WM-001 completed cycle", time: "5 min ago", read: false },
-    { id: 3, text: "Payment received for order #ORD-002", time: "10 min ago", read: true },
-  ];
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMachines(prev => prev.map(machine => {
-        if (machine.status === "in-use" && machine.progress !== undefined) {
-          const newProgress = Math.min(100, machine.progress + Math.random() * 5);
-          if (newProgress >= 100) {
-            return { ...machine, status: "available", progress: undefined, currentOrder: undefined };
-          }
-          return { ...machine, progress: newProgress };
-        }
-        return machine;
-      }));
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Handle order click
-  const handleOrderClick = (orderId: string) => {
-    const order = orders.find(o => o.id === orderId);
-    if (order?.machineId) {
-      setHighlightedMachine(order.machineId);
-      setToastMessage(`Order ${orderId} assigned to ${order.machineId}`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    }
-    setSelectedOrder(orderId);
-  };
-
-  // Status badge component
-  const StatusBadge = ({ status }: { status: string }) => {
-    const styles = {
-      pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      washing: "bg-blue-100 text-blue-800 border-blue-200",
-      drying: "bg-purple-100 text-purple-800 border-purple-200",
-      completed: "bg-green-100 text-green-800 border-green-200",
-      "in-use": "bg-blue-100 text-blue-800 border-blue-200",
-      available: "bg-green-100 text-green-800 border-green-200",
-      maintenance: "bg-orange-100 text-orange-800 border-orange-200",
-    };
-
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${styles[status as keyof typeof styles]}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1).replace("-", " ")}
-      </span>
-    );
-  };
-
-  const sidebarItems = [
-    { icon: TrendingUp, label: "Dashboard", active: true },
-    { icon: ShoppingCart, label: "Orders" },
-    { icon: Package, label: "Machines" },
-    { icon: Users, label: "Customers" },
-    { icon: FileText, label: "Reports" },
-    { icon: Settings, label: "Settings" },
-  ];
-
-  return (
-    <div className={`min-h-screen ${darkMode ? "bg-slate-900" : "bg-slate-50"}`}>
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed top-4 right-4 z-50 animate-pulse">
-          <div className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
-            <CheckCircle size={20} />
-            {toastMessage}
-          </div>
-        </div>
-      )}
-
-      {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full ${darkMode ? "bg-slate-800" : "bg-white"} shadow-xl z-40 transition-all duration-300 ${sidebarOpen ? "w-64" : "w-20"} lg:w-64 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-10">
-            <h1 className={`text-2xl font-bold ${sidebarOpen ? "block" : "hidden"} ${darkMode ? "text-white" : "text-slate-900"}`}>
-              WASHWARE
-            </h1>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden text-slate-500 hover:text-slate-700"
-            >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
-
-          <nav className="space-y-2">
-            {sidebarItems.map((item, index) => (
-              <a
-                key={index}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  item.active
-                    ? "bg-blue-600 text-white shadow-md"
-                    : darkMode
-                    ? "text-slate-300 hover:bg-slate-700 hover:text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                <item.icon size={20} />
-                {sidebarOpen && <span>{item.label}</span>}
-              </a>
-            ))}
-          </nav>
->>>>>>> d481c1b967107f74dcee1fc4daa5966924633e86
         </div>
       </div>
     );
   }
 
-<<<<<<< HEAD
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col bg-slate-950 p-5 text-white lg:flex">
@@ -694,6 +499,7 @@ function DashboardContent() {
               saving={saving === "service"}
               defaultShopId={profile?.shop_id || snapshot.shops[0]?.id || ""}
               onSave={(input) => runAction("service", () => saveService(input))}
+              onSeed={(shopId) => runAction("service", () => seedDefaultServices(shopId || null))}
             />
           )}
 
@@ -782,9 +588,11 @@ function CustomerPortal({
   onCreateOrder: (input: {
     customer_id: string;
     shop_id: string;
-    service_type: string;
-    quantity: number;
-    unit_price: number;
+    items: Array<{
+      service_type: string;
+      quantity: number;
+      unit_price: number;
+    }>;
     fulfillment: "pickup" | "drop_off";
     address: string;
     notes?: string;
@@ -837,9 +645,7 @@ function CustomerPortal({
           onCreateOrder({
             customer_id: profile.id,
             shop_id: order.shop_id,
-            service_type: service.name,
-            quantity: 1,
-            unit_price: Number(service.price || 0),
+            items: [{ service_type: service.name, quantity: 1, unit_price: Number(service.price || 0) }],
             fulfillment: "pickup",
             address: profile.address || "",
             notes: `Reorder from ${order.order_number || order.id.slice(0, 8)}`,
@@ -873,6 +679,13 @@ function CustomerPortal({
             className="w-full bg-transparent text-sm outline-none"
           />
         </div>
+
+        <ShopMap
+          shops={filteredShops}
+          selectedShopId={selectedShop?.id || ""}
+          userLocation={location}
+          onSelectShop={setSelectedShopId}
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           {filteredShops.map((shop) => {
@@ -923,6 +736,165 @@ function CustomerPortal({
   );
 }
 
+type LatLng = { latitude: number; longitude: number };
+
+type GoogleMapNamespace = {
+  maps: {
+    Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance;
+    Marker: new (options: Record<string, unknown>) => GoogleMarkerInstance;
+    LatLngBounds: new () => GoogleBoundsInstance;
+  };
+};
+
+type GoogleMapInstance = {
+  fitBounds: (bounds: GoogleBoundsInstance) => void;
+  panTo: (latLng: { lat: number; lng: number }) => void;
+  setZoom: (zoom: number) => void;
+};
+
+type GoogleMarkerInstance = {
+  addListener: (eventName: string, handler: () => void) => void;
+  setMap: (map: GoogleMapInstance | null) => void;
+};
+
+type GoogleBoundsInstance = {
+  extend: (latLng: { lat: number; lng: number }) => void;
+};
+
+declare global {
+  interface Window {
+    google?: GoogleMapNamespace;
+    washwareGoogleMapsPromise?: Promise<void>;
+  }
+}
+
+function loadGoogleMaps(apiKey: string) {
+  if (window.google?.maps) return Promise.resolve();
+  if (window.washwareGoogleMapsPromise) return window.washwareGoogleMapsPromise;
+
+  window.washwareGoogleMapsPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>('script[data-washware-google-maps="true"]');
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Google Maps failed to load.")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.washwareGoogleMaps = "true";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Google Maps failed to load."));
+    document.head.appendChild(script);
+  });
+
+  return window.washwareGoogleMapsPromise;
+}
+
+function ShopMap({
+  shops,
+  selectedShopId,
+  userLocation,
+  onSelectShop,
+}: {
+  shops: DashboardSnapshot["shops"];
+  selectedShopId: string;
+  userLocation: LatLng | null;
+  onSelectShop: (shopId: string) => void;
+}) {
+  const mapElementRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<GoogleMapInstance | null>(null);
+  const markersRef = useRef<GoogleMarkerInstance[]>([]);
+  const [mapError, setMapError] = useState("");
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const shopsWithCoordinates = useMemo(
+    () => shops.filter((shop) => typeof shop.latitude === "number" && typeof shop.longitude === "number"),
+    [shops],
+  );
+  const renderedMapError = apiKey ? mapError : "Google Maps is not configured.";
+
+  useEffect(() => {
+    if (!apiKey) {
+      return;
+    }
+
+    let cancelled = false;
+
+    loadGoogleMaps(apiKey)
+      .then(() => {
+        if (cancelled || !mapElementRef.current || !window.google?.maps) return;
+
+        const firstShop = shopsWithCoordinates[0];
+        const initialCenter = firstShop
+          ? { lat: firstShop.latitude as number, lng: firstShop.longitude as number }
+          : userLocation
+            ? { lat: userLocation.latitude, lng: userLocation.longitude }
+            : { lat: 3.848, lng: 11.502 };
+
+        if (!mapRef.current) {
+          mapRef.current = new window.google.maps.Map(mapElementRef.current, {
+            center: initialCenter,
+            zoom: firstShop ? 13 : 11,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+          });
+        }
+
+        markersRef.current.forEach((marker) => marker.setMap(null));
+        markersRef.current = [];
+
+        const bounds = new window.google.maps.LatLngBounds();
+
+        shopsWithCoordinates.forEach((shop) => {
+          if (!mapRef.current || !window.google?.maps) return;
+          const position = { lat: shop.latitude as number, lng: shop.longitude as number };
+          bounds.extend(position);
+          const marker = new window.google.maps.Marker({
+            position,
+            map: mapRef.current,
+            title: shop.name,
+            label: shop.id === selectedShopId ? "✓" : undefined,
+          });
+          marker.addListener("click", () => onSelectShop(shop.id));
+          markersRef.current.push(marker);
+        });
+
+        if (shopsWithCoordinates.length > 1) {
+          mapRef.current.fitBounds(bounds);
+        } else if (shopsWithCoordinates.length === 1) {
+          mapRef.current.panTo({ lat: shopsWithCoordinates[0].latitude as number, lng: shopsWithCoordinates[0].longitude as number });
+          mapRef.current.setZoom(14);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setMapError(errorMessage(error, "Google Maps failed to load."));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKey, onSelectShop, selectedShopId, shopsWithCoordinates, userLocation]);
+
+  return (
+    <div className="overflow-hidden rounded-md bg-white shadow-sm">
+      <div ref={mapElementRef} className="h-80 w-full bg-slate-100" />
+      {renderedMapError && (
+        <div className="border-t border-slate-200 p-4 text-sm text-slate-600">
+          {renderedMapError}
+        </div>
+      )}
+      {!renderedMapError && shopsWithCoordinates.length === 0 && (
+        <div className="border-t border-slate-200 p-4 text-sm text-slate-600">
+          No shop coordinates are available yet.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CustomerOrderForm({
   profile,
   shop,
@@ -937,9 +909,11 @@ function CustomerOrderForm({
   onCreate: (input: {
     customer_id: string;
     shop_id: string;
-    service_type: string;
-    quantity: number;
-    unit_price: number;
+    items: Array<{
+      service_type: string;
+      quantity: number;
+      unit_price: number;
+    }>;
     fulfillment: "pickup" | "drop_off";
     address: string;
     notes?: string;
@@ -947,7 +921,7 @@ function CustomerOrderForm({
   }) => void;
 }) {
   const [serviceId, setServiceId] = useState(services[0]?.id || "");
-  const [quantity, setQuantity] = useState(1);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [fulfillment, setFulfillment] = useState<"pickup" | "drop_off">("pickup");
   const [address, setAddress] = useState(profile.address || "");
   const [notes, setNotes] = useState("");
@@ -955,24 +929,31 @@ function CustomerOrderForm({
 
   const effectiveServiceId = services.some((item) => item.id === serviceId) ? serviceId : services[0]?.id || "";
   const service = services.find((item) => item.id === effectiveServiceId) || services[0];
-  const subtotal = Number(service?.price || 0) * quantity;
+  const selectedItems = services
+    .map((item) => ({
+      service_type: item.name,
+      quantity: quantities[item.id] || 0,
+      unit_price: Number(item.price || 0),
+    }))
+    .filter((item) => item.quantity > 0);
+  const subtotal = selectedItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (!shop || !service) return;
+        if (!shop || selectedItems.length === 0) return;
         onCreate({
           customer_id: profile.id,
           shop_id: shop.id,
-          service_type: service.name,
-          quantity,
-          unit_price: Number(service.price || 0),
+          items: selectedItems,
           fulfillment,
           address,
           notes,
           payment_method: paymentMethod,
         });
+        setQuantities({});
+        setServiceId(services[0]?.id || "");
         setNotes("");
       }}
       className="rounded-md bg-white p-5 shadow-sm"
@@ -984,8 +965,8 @@ function CustomerOrderForm({
       </div>
 
       <label className="mb-3 block text-sm font-medium">
-        Service
-        <select value={effectiveServiceId} onChange={(event) => setServiceId(event.target.value)} className="mt-1 w-full rounded-md border p-2" required>
+        Add cleaning service
+        <select value={effectiveServiceId} onChange={(event) => setServiceId(event.target.value)} className="mt-1 w-full rounded-md border p-2">
           <option value="">Choose service</option>
           {services.map((item) => (
             <option key={item.id} value={item.id}>
@@ -995,10 +976,30 @@ function CustomerOrderForm({
         </select>
       </label>
 
-      <label className="mb-3 block text-sm font-medium">
-        Quantity
-        <input value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} type="number" min={1} className="mt-1 w-full rounded-md border p-2" />
-      </label>
+      <div className="mb-3 space-y-2">
+        <p className="text-sm font-medium">Service quantities</p>
+        {services.length === 0 ? (
+          <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">This shop has not published cleaning services yet.</p>
+        ) : (
+          services.map((item) => (
+            <label key={item.id} className={`grid grid-cols-[1fr_92px] items-center gap-3 rounded-md border p-3 text-sm ${item.id === service?.id ? "border-blue-200 bg-blue-50/60" : "border-slate-200"}`}>
+              <span>
+                <span className="block font-medium text-slate-900">{item.name}</span>
+                <span className="text-slate-500">{money(item.price)} per {item.pricing_unit}</span>
+              </span>
+              <input
+                value={quantities[item.id] || ""}
+                onChange={(event) => setQuantities((current) => ({ ...current, [item.id]: Number(event.target.value) }))}
+                onFocus={() => setServiceId(item.id)}
+                type="number"
+                min={0}
+                className="w-full rounded-md border p-2"
+                placeholder="0"
+              />
+            </label>
+          ))
+        )}
+      </div>
 
       <div className="mb-3 grid grid-cols-2 gap-2">
         <button type="button" onClick={() => setFulfillment("pickup")} className={`rounded-md border px-3 py-2 text-sm ${fulfillment === "pickup" ? "border-blue-600 bg-blue-50 text-blue-700" : ""}`}>
@@ -1038,7 +1039,7 @@ function CustomerOrderForm({
         </div>
       </div>
 
-      <button disabled={saving || !shop || !service} className="w-full rounded-md bg-blue-600 px-3 py-2 text-white disabled:opacity-50">
+      <button disabled={saving || !shop || selectedItems.length === 0} className="w-full rounded-md bg-blue-600 px-3 py-2 text-white disabled:opacity-50">
         Place Order
       </button>
     </form>
@@ -1552,9 +1553,11 @@ function OrdersPanel({
   onCreate: (input: {
     customer_id: string;
     shop_id: string;
-    service_type: string;
-    quantity: number;
-    unit_price: number;
+    items: Array<{
+      service_type: string;
+      quantity: number;
+      unit_price: number;
+    }>;
     pickup_time?: string;
     delivery_time?: string;
   }) => void;
@@ -1564,16 +1567,22 @@ function OrdersPanel({
   const deliveryAgents = snapshot.profiles.filter((person) => person.role === "delivery_agent");
   const [customerId, setCustomerId] = useState(customers[0]?.id || "");
   const [shopId, setShopId] = useState(snapshot.shops[0]?.id || "");
-  const [service, setService] = useState(snapshot.services[0]?.name || "Washing");
+  const availableServices = snapshot.services.filter((service) => !service.shop_id || service.shop_id === shopId);
+  const [serviceId, setServiceId] = useState(availableServices[0]?.id || "");
   const [quantity, setQuantity] = useState(1);
-  const [price, setPrice] = useState(Number(snapshot.services[0]?.price || 0));
+  const selectedService = availableServices.find((service) => service.id === serviceId) || availableServices[0];
 
   return (
     <div className="space-y-6">
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          onCreate({ customer_id: customerId, shop_id: shopId, service_type: service, quantity, unit_price: price });
+          if (!selectedService) return;
+          onCreate({
+            customer_id: customerId,
+            shop_id: shopId,
+            items: [{ service_type: selectedService.name, quantity, unit_price: Number(selectedService.price || 0) }],
+          });
         }}
         className="grid gap-3 rounded-md bg-white p-5 shadow-sm md:grid-cols-6"
       >
@@ -1585,7 +1594,17 @@ function OrdersPanel({
             </option>
           ))}
         </select>
-        <select value={shopId} onChange={(event) => setShopId(event.target.value)} className="rounded-md border p-2" required>
+        <select
+          value={shopId}
+          onChange={(event) => {
+            const nextShopId = event.target.value;
+            setShopId(nextShopId);
+            const nextService = snapshot.services.find((service) => !service.shop_id || service.shop_id === nextShopId);
+            setServiceId(nextService?.id || "");
+          }}
+          className="rounded-md border p-2"
+          required
+        >
           <option value="">Branch</option>
           {snapshot.shops.map((shop) => (
             <option key={shop.id} value={shop.id}>
@@ -1593,10 +1612,17 @@ function OrdersPanel({
             </option>
           ))}
         </select>
-        <input value={service} onChange={(event) => setService(event.target.value)} placeholder="Service" className="rounded-md border p-2" required />
+        <select value={selectedService?.id || ""} onChange={(event) => setServiceId(event.target.value)} className="rounded-md border p-2" required>
+          <option value="">Service</option>
+          {availableServices.map((service) => (
+            <option key={service.id} value={service.id}>
+              {service.name}
+            </option>
+          ))}
+        </select>
         <input value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} type="number" min={1} className="rounded-md border p-2" />
-        <input value={price} onChange={(event) => setPrice(Number(event.target.value))} type="number" min={0} step="0.01" className="rounded-md border p-2" />
-        <button disabled={saving === "order"} className="rounded-md bg-blue-600 px-3 py-2 text-white disabled:opacity-50 md:col-span-6">
+        <input value={selectedService ? money(selectedService.price) : ""} className="rounded-md border bg-slate-50 p-2 text-slate-500" disabled />
+        <button disabled={saving === "order" || !selectedService} className="rounded-md bg-blue-600 px-3 py-2 text-white disabled:opacity-50 md:col-span-6">
           Create Walk-in Order
         </button>
       </form>
@@ -1772,29 +1798,49 @@ function ServicesPanel({
   saving,
   defaultShopId,
   onSave,
+  onSeed,
 }: {
   snapshot: DashboardSnapshot;
   saving: boolean;
   defaultShopId: string;
-  onSave: (input: { shop_id?: string | null; name: string; pricing_unit: "item" | "kg"; price: number; is_active: boolean }) => void;
+  onSave: (input: { id?: string; shop_id?: string | null; name: string; pricing_unit: "item" | "kg"; price: number; is_active: boolean }) => void;
+  onSeed: (shopId: string) => void;
 }) {
   const [shopId, setShopId] = useState(defaultShopId);
+  const [editingId, setEditingId] = useState("");
   const [name, setName] = useState("");
   const [unit, setUnit] = useState<"item" | "kg">("item");
-  const [price, setPrice] = useState(0);
+  const [price, setPrice] = useState(800);
+  const [isActive, setIsActive] = useState(true);
+
+  function editService(service: DashboardSnapshot["services"][number]) {
+    setEditingId(service.id);
+    setShopId(service.shop_id || "");
+    setName(service.name);
+    setUnit(service.pricing_unit);
+    setPrice(Number(service.price || 0));
+    setIsActive(service.is_active);
+  }
+
+  function resetForm() {
+    setEditingId("");
+    setName("");
+    setUnit("item");
+    setPrice(800);
+    setIsActive(true);
+  }
 
   return (
     <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          onSave({ shop_id: shopId || null, name, pricing_unit: unit, price, is_active: true });
-          setName("");
-          setPrice(0);
+          onSave({ id: editingId || undefined, shop_id: shopId || null, name, pricing_unit: unit, price, is_active: isActive });
+          resetForm();
         }}
         className="rounded-md bg-white p-5 shadow-sm"
       >
-        <h2 className="mb-4 font-semibold">Service Pricing</h2>
+        <h2 className="mb-4 font-semibold">{editingId ? "Edit Cleaning Service" : "Service Pricing"}</h2>
         <select value={shopId} onChange={(event) => setShopId(event.target.value)} className="mb-3 w-full rounded-md border p-2">
           <option value="">All branches</option>
           {snapshot.shops.map((shop) => (
@@ -1808,21 +1854,57 @@ function ServicesPanel({
           <option value="item">Per item</option>
           <option value="kg">Per kilogram</option>
         </select>
-        <input value={price} onChange={(event) => setPrice(Number(event.target.value))} type="number" min={0} step="0.01" className="mb-3 w-full rounded-md border p-2" />
-        <button disabled={saving} className="w-full rounded-md bg-blue-600 px-3 py-2 text-white disabled:opacity-50">
-          Save Service
+        <label className="mb-3 block text-sm font-medium text-slate-700">
+          Price in CFA
+          <input value={price} onChange={(event) => setPrice(Number(event.target.value))} type="number" min={0} step="50" className="mt-1 w-full rounded-md border p-2" />
+        </label>
+        <label className="mb-3 flex items-center gap-2 text-sm text-slate-700">
+          <input checked={isActive} onChange={(event) => setIsActive(event.target.checked)} type="checkbox" className="h-4 w-4" />
+          Active and visible to customers
+        </label>
+        <div className="flex gap-2">
+          <button disabled={saving} className="flex-1 rounded-md bg-blue-600 px-3 py-2 text-white disabled:opacity-50">
+            Save Service
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} className="rounded-md border px-3 py-2 text-sm">
+              Cancel
+            </button>
+          )}
+        </div>
+        <button type="button" disabled={saving} onClick={() => onSeed(shopId)} className="mt-3 w-full rounded-md border border-blue-200 px-3 py-2 text-sm text-blue-700 disabled:opacity-50">
+          Add Default CFA Services
         </button>
       </form>
 
-      <SimpleList
-        title="Configured Services"
-        rows={snapshot.services.map((service) => ({
-          id: service.id,
-          primary: service.name,
-          secondary: `${service.pricing_unit} pricing`,
-          right: money(service.price),
-        }))}
-      />
+      <div className="rounded-md bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="font-semibold">Configured Services</h2>
+          <p className="text-sm text-slate-500">Prices are shown to customers in CFA. Shop-specific services override branch availability.</p>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {snapshot.services.length === 0 ? (
+            <p className="p-5 text-sm text-slate-500">No services yet.</p>
+          ) : (
+            snapshot.services.map((service) => (
+              <div key={service.id} className="grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-center">
+                <div>
+                  <p className="font-medium">{service.name}</p>
+                  <p className="text-sm text-slate-500">
+                    {service.pricing_unit} pricing · {service.shop_id ? snapshot.shops.find((shop) => shop.id === service.shop_id)?.name || "Branch" : "All branches"} · {service.is_active ? "Active" : "Hidden"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700">{money(service.price)}</span>
+                  <button onClick={() => editService(service)} className="rounded-md border px-3 py-2 text-sm">
+                    Edit
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -2101,322 +2183,6 @@ function SimpleList({
           ))
         )}
       </div>
-=======
-      {/* Main Content */}
-      <div className={`transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-20"}`}>
-        {/* Header */}
-        <header className={`${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"} border-b sticky top-0 z-30 shadow-sm`}>
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-4 flex-1">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden text-slate-500 hover:text-slate-700"
-              >
-                <Menu size={24} />
-              </button>
-              
-              <div className="relative max-w-md flex-1">
-                <Search
-                  size={18}
-                  className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}
-                />
-                <input
-                  type="text"
-                  placeholder="Search orders..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2 rounded-lg border ${darkMode ? "bg-slate-700 border-slate-600 text-white placeholder-slate-400" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-500"} focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Dark Mode Toggle */}
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className={`p-2 rounded-lg ${darkMode ? "hover:bg-slate-700 text-yellow-400" : "hover:bg-slate-100 text-slate-600"} transition`}
-              >
-                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
-
-              {/* Notifications */}
-              <div className="relative">
-                <button
-                  onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className={`p-2 rounded-lg ${darkMode ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-100 text-slate-600"} transition relative`}
-                >
-                  <Bell size={20} />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                </button>
-
-                {notificationsOpen && (
-                  <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-xl ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"} border`}>
-                    <div className="p-4 border-b border-slate-200">
-                      <h3 className={`font-semibold ${darkMode ? "text-white" : "text-slate-900"}`}>Notifications</h3>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.map(notif => (
-                        <div key={notif.id} className={`p-4 border-b ${darkMode ? "border-slate-700 hover:bg-slate-700" : "border-slate-100 hover:bg-slate-50"} transition`}>
-                          <div className="flex items-start gap-3">
-                            <div className={`w-2 h-2 rounded-full mt-2 ${notif.read ? "bg-slate-300" : "bg-blue-600"}`}></div>
-                            <div className="flex-1">
-                              <p className={`text-sm ${darkMode ? "text-white" : "text-slate-900"}`}>{notif.text}</p>
-                              <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"} mt-1`}>{notif.time}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* User Menu */}
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className={`flex items-center gap-2 p-2 rounded-lg ${darkMode ? "hover:bg-slate-700" : "hover:bg-slate-100"} transition`}
-                >
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <User size={16} className="text-white" />
-                  </div>
-                  <ChevronRight size={16} className={`${darkMode ? "text-slate-400" : "text-slate-500"}`} />
-                </button>
-
-                {userMenuOpen && (
-                  <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-xl ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"} border`}>
-                    <a className={`flex items-center gap-3 px-4 py-3 ${darkMode ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-50 text-slate-700"} transition`}>
-                      <User size={16} />
-                      Profile
-                    </a>
-                    <a className={`flex items-center gap-3 px-4 py-3 ${darkMode ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-50 text-slate-700"} transition`}>
-                      <Settings size={16} />
-                      Settings
-                    </a>
-                    <hr className={`${darkMode ? "border-slate-700" : "border-slate-200"}`} />
-                    <a className={`flex items-center gap-3 px-4 py-3 ${darkMode ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-50 text-slate-700"} transition`}>
-                      <LogOut size={16} />
-                      Logout
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Dashboard Content */}
-        <main className="p-6">
-          <h2 className={`text-3xl font-bold mb-8 ${darkMode ? "text-white" : "text-slate-900"}`}>
-            Laundry Dashboard
-          </h2>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className={`${darkMode ? "bg-slate-800" : "bg-white"} p-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-1`}>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <ShoppingCart className="text-blue-600" size={24} />
-                </div>
-                <div>
-                  <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Total Orders</p>
-                  <h3 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>{stats.totalOrders}</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className={`${darkMode ? "bg-slate-800" : "bg-white"} p-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-1`}>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-yellow-100 rounded-lg">
-                  <Clock className="text-yellow-600" size={24} />
-                </div>
-                <div>
-                  <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Pending Orders</p>
-                  <h3 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>{stats.pendingOrders}</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className={`${darkMode ? "bg-slate-800" : "bg-white"} p-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-1`}>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <CheckCircle className="text-green-600" size={24} />
-                </div>
-                <div>
-                  <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Completed</p>
-                  <h3 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>{stats.completedOrders}</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className={`${darkMode ? "bg-slate-800" : "bg-white"} p-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-1`}>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <DollarSign className="text-purple-600" size={24} />
-                </div>
-                <div>
-                  <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Revenue</p>
-                  <h3 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>{stats.revenue}</h3>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div className={`${darkMode ? "bg-slate-800" : "bg-white"} p-6 rounded-xl shadow-md`}>
-              <h3 className={`text-lg font-semibold mb-4 ${darkMode ? "text-white" : "text-slate-900"}`}>
-                Orders Over Last 7 Days
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={ordersChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#475569" : "#e2e8f0"} />
-                  <XAxis dataKey="day" stroke={darkMode ? "#94a3b8" : "#64748b"} />
-                  <YAxis stroke={darkMode ? "#94a3b8" : "#64748b"} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: darkMode ? "#1e293b" : "#ffffff",
-                      border: `1px solid ${darkMode ? "#475569" : "#e2e8f0"}`,
-                      borderRadius: "8px"
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="orders" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    dot={{ fill: "#3b82f6", r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className={`${darkMode ? "bg-slate-800" : "bg-white"} p-6 rounded-xl shadow-md`}>
-              <h3 className={`text-lg font-semibold mb-4 ${darkMode ? "text-white" : "text-slate-900"}`}>
-                Machine Status
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={machineStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {machineStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex justify-center gap-4 mt-4">
-                {machineStatusData.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                    <span className={`text-sm ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                      {item.name}: {item.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Orders Table */}
-          <div className={`${darkMode ? "bg-slate-800" : "bg-white"} p-6 rounded-xl shadow-md mb-8`}>
-            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? "text-white" : "text-slate-900"}`}>
-              Recent Orders
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className={`border-b ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
-                    <th className={`text-left py-3 px-4 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Order ID</th>
-                    <th className={`text-left py-3 px-4 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Customer</th>
-                    <th className={`text-left py-3 px-4 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Service</th>
-                    <th className={`text-left py-3 px-4 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Status</th>
-                    <th className={`text-left py-3 px-4 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order, index) => (
-                    <tr
-                      key={index}
-                      className={`border-b ${darkMode ? "border-slate-700 hover:bg-slate-700" : "border-slate-100 hover:bg-slate-50"} transition cursor-pointer ${selectedOrder === order.id ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
-                      onClick={() => handleOrderClick(order.id)}
-                    >
-                      <td className={`py-3 px-4 ${darkMode ? "text-white" : "text-slate-900"}`}>{order.id}</td>
-                      <td className={`py-3 px-4 ${darkMode ? "text-white" : "text-slate-900"}`}>{order.customer}</td>
-                      <td className={`py-3 px-4 ${darkMode ? "text-white" : "text-slate-900"}`}>{order.service}</td>
-                      <td className="py-3 px-4">
-                        <StatusBadge status={order.status} />
-                      </td>
-                      <td className={`py-3 px-4 ${darkMode ? "text-white" : "text-slate-900"}`}>{order.amount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Machine Status Grid */}
-          <div className={`${darkMode ? "bg-slate-800" : "bg-white"} p-6 rounded-xl shadow-md`}>
-            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? "text-white" : "text-slate-900"}`}>
-              Machine Status
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {machines.map((machine, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg border ${darkMode ? "border-slate-700" : "border-slate-200"} ${highlightedMachine === machine.id ? "ring-2 ring-blue-500 ring-opacity-50" : ""} transition-all duration-200 hover:shadow-md`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className={`font-medium ${darkMode ? "text-white" : "text-slate-900"}`}>{machine.name}</h4>
-                    <StatusBadge status={machine.status} />
-                  </div>
-                  {machine.status === "in-use" && machine.progress !== undefined && (
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className={darkMode ? "text-slate-400" : "text-slate-600"}>Progress</span>
-                        <span className={darkMode ? "text-slate-400" : "text-slate-600"}>{Math.round(machine.progress)}%</span>
-                      </div>
-                      <div className={`w-full ${darkMode ? "bg-slate-700" : "bg-slate-200"} rounded-full h-2`}>
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${machine.progress}%` }}
-                        ></div>
-                      </div>
-                      {machine.currentOrder && (
-                        <p className={`text-xs mt-2 ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
-                          Order: {machine.currentOrder}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {machine.status === "maintenance" && (
-                    <div className="flex items-center gap-2 text-orange-600">
-                      <AlertCircle size={16} />
-                      <span className="text-sm">Under maintenance</span>
-                    </div>
-                  )}
-                  {machine.status === "available" && (
-                    <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle size={16} />
-                      <span className="text-sm">Ready to use</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </main>
-      </div>
->>>>>>> d481c1b967107f74dcee1fc4daa5966924633e86
     </div>
   );
 }

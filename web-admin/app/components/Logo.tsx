@@ -18,7 +18,7 @@ export default function Logo() {
         <circle cx="65" cy="35" r="6" fill="#60a5fa" />
       </svg>
 
-      <span className="font-bold text-xl tracking-wide">
+      <span className="font-bold text-xl tracking-wide text-current">
         WASHWARE
       </span>
     </div>

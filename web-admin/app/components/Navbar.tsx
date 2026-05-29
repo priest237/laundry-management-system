@@ -3,12 +3,12 @@ import Logo from "./Logo";
 
 export default function Navbar() {
   return (
-    <nav className="flex justify-between items-center px-8 py-4 bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+    <nav className="flex justify-between items-center px-8 py-4 bg-white/90 text-slate-950 backdrop-blur-md shadow-sm sticky top-0 z-50">
 
       <Logo />
 
       <div className="flex gap-6 font-medium">
-        <Link href="/login" className="hover:text-blue-600 transition">
+        <Link href="/login" className="text-slate-800 hover:text-blue-700 transition">
           Login
         </Link>
 
